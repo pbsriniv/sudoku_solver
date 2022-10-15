@@ -2,7 +2,7 @@
 #define _dimension_h_
 #include "vcell.h"
 
-enum dim_type {ROW,COL,SQUARE};
+enum class dim_type {ROW,COL,SQUARE};
 
 class Dimension {
     

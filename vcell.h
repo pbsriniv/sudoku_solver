@@ -2,16 +2,47 @@
 #define _my_cell_
 
 #include <iostream>
+#include <vector>
+
 using namespace std;
 
 
 typedef unsigned int uint;
 
-static inline bool test_solved(uint dMask)
+
+class Vcell {
+  
+  private:
+  uint cell_info;
+ 
+  public : 
+  Vcell(): cell_info(0x1ff) {}
+  bool is_solved() {  return((cell_info & (cell_info-1)==0)&&(cell_info!=0)); }
+  Vcell & operator + (Vcell &a, Vcell &b);
+
+} ;
+
+Vcell & operator + (Vcell &a, Vcell &b)
 {
-    
-    return((dMask & (dMask-1)==0)&&(dMask!=0));
+  a.cell_info=(a.cell_info|b.cell_info)&0x1ff;
+  return(a);
 }
+
+Vcell & operator - (Vcell &a, Vcell &b)
+{
+  a=(a &(~b))&0x1ff;
+  return(a);
+}
+
+
+
+Vcell & operator = (Vcell &a, int const b)
+{
+  a=(a &(~b))&0x1ff;
+  return(a);
+}
+
+
 
 static inline int mask_to_number(uint dMask)
 {
@@ -24,18 +55,5 @@ static inline int mask_to_number(uint dMask)
   return(cnt);
 }
 
-class Vcell {
-  
-  uint cellData;
-   
-  public : 
-  bool is_solved() { return(test_solved(cellData)); };
-  bool set_patrn(uint patrn) { cellData = patrn&0x3fe; return(test_solved(cellData));}
-  bool clr_patrn() { cellData = 0; return(test_solved(cellData));}
-  bool add_patrn(uint patrn) {cellData =  (cellData | patrn)&0x3fe; return(test_solved(cellData));};
-  bool rem_patrn(uint patrn) {cellData = (cellData & (~patrn))&0x3fe; return(test_solved(cellData));};
-  uint get_cell_patrn() {return(cellData&0x3fe);};
-  uint get_cell_val() {return (mask_to_number(cellData));};
-} ;
 
 #endif
