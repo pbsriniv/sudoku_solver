@@ -7,52 +7,66 @@
 using namespace std;
 
 
-typedef unsigned int uint;
-
-
 class Vcell {
   
+  friend Vcell  operator + (const Vcell &a, const Vcell &b);
+  friend Vcell  operator - (const Vcell &a, const Vcell &b);
+  friend Vcell  operator * (const Vcell &a, const Vcell &b);
+  friend ostream & operator << (ostream & out,const Vcell &a);
+
   private:
-  uint cell_info;
- 
+  unsigned int  cell_info;
+
   public : 
   Vcell(): cell_info(0x1ff) {}
   bool is_solved() {  return((cell_info & (cell_info-1)==0)&&(cell_info!=0)); }
-  Vcell & operator + (Vcell &a, Vcell &b);
+  void operator = (int a);
+  void clr() {cell_info=0x1ff;}
+  void set(int a) {cell_info= (1<<a)&0x1ff;}
 
 } ;
 
-Vcell & operator + (Vcell &a, Vcell &b)
+Vcell operator + (const Vcell &a, const Vcell &b)
 {
-  a.cell_info=(a.cell_info|b.cell_info)&0x1ff;
-  return(a);
+  // Union
+  Vcell ret;
+  ret.cell_info = (a.cell_info|b.cell_info) & 0x1ff;
+  return(ret);
 }
 
-Vcell & operator - (Vcell &a, Vcell &b)
+Vcell  operator - (const Vcell &a, const Vcell &b)
 {
-  a=(a &(~b))&0x1ff;
-  return(a);
+  Vcell ret;
+  ret=(a &(~b))&0x1ff;
+  return(ret);
 }
 
-
-
-Vcell & operator = (Vcell &a, int const b)
+Vcell operator * (const Vcell &a, const Vcell &b)
 {
-  a=(a &(~b))&0x1ff;
-  return(a);
+  // Intersection
+  Vcell ret;
+  ret.cell_info = (a.cell_info&b.cell_info) & 0x1ff;
+  return(ret);
 }
 
-
-
-static inline int mask_to_number(uint dMask)
+void Vcell::operator = (int a)
 {
-  int cnt;
-  if ((dMask>(1<<9))||(dMask<(1<<1))) cout << "Error Detected" << endl;
-  if (test_solved(dMask))
-  {
-   for(cnt = 1; ((cnt<=9)&&(!(dMask&(1<<cnt)))); cnt++ );
+  cell_info= ((1<<a)) & 0x1ff;
+}
+
+ostream & operator << (ostream & out,const Vcell &a)
+{  
+#if 0
+  out <<"(";
+  for (int cnt=0;cnt<8;++cnt) {
+    if (a.cell_info&(1<<cnt)) out<<cnt<<",";
   }
-  return(cnt);
+  if (a.cell_info&(1<<cnt)) out<<cnt;
+  out<<")";
+#else
+   out << std::hex << a.cell_info; 
+#endif
+  return(out);
 }
 
 
