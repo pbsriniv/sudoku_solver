@@ -19,32 +19,34 @@ void n_choose_k(int n, int k,  vector <int>::const_iterator itr, vector <int> &s
   }
 }
 
-void combi( int k, vector <vector <int>> &res)
+void gen_combi( int k, vector <vector <int>> &res)
 {
+  vector <int> start_data = {0,1,2,3,4,5,6,7,8};
+  vector <int> seq;
 
-vector <int> start_data = {0,1,2,3,4,5,6,7,8};
-vector <int> seq;
+  vector <int>::const_iterator itr =start_data.cbegin();
 
-vector <int>::const_iterator itr =start_data.cbegin();
-
-n_choose_k(start_data.size(), k, itr, seq, res);
-
+  n_choose_k(start_data.size(), k, itr, seq, res);
 }
 
-void gen_combi_mask(int k, vector <unsigned int> &combi_masks)
+void gen_compl_cells(vector <int> const &res, vector <int> &compl_res)
 {
-  static vector <vector <int>> res;  // Temporary vriable
+  // Generate the seq Mask
+  unsigned int mask=0;
+  for( auto ent:res) mask = mask|(1u<<ent);
 
-  res.clear();
-  combi(k, res);  // Generate the list of combinatorial sequqnces
+  // Complement Mask
+  const unsigned int nine_ones = ((1<<9)-1);
+  unsigned int compl_mask = nine_ones & (~mask);
 
-  for( auto seq:res)
+  compl_res.clear();
+  for (int cnt=0; cnt<9;++cnt)
   {
-    unsigned int mask=0;
-    for( auto ent:seq) mask = mask|(1u<<ent);
-    combi_masks.push_back(mask);
+    if (compl_mask&(1<<cnt)) compl_res.push_back(cnt);
   }
 }
+
+
 
 #if 0
 int main()

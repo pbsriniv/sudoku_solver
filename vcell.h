@@ -23,11 +23,21 @@ class Vcell {
   Vcell(unsigned int mask): cell_info(mask) {}
   bool is_solved() {  return((cell_info & (cell_info-1)==0)&&(cell_info!=0)); }
   void operator = (int a);
+  bool operator == (Vcell a) { return(cell_info == a.cell_info);}
   void clr() {cell_info=ALL_MASK;}
-  void set(int a) {cell_info= (1<<a)&ALL_MASK;}
+  void set(int a) {cell_info= ((a>0)&&(a<10) ? (1<<a)&ALL_MASK : ALL_MASK;}
   bool match(int a) {return(cell_info==a);}
   int num_entry() {int entry =0; for (int cnt =1; cnt<10;++cnt) {  if(cell_info&(1<<cnt)) entry++;} return(entry);}
   int get_solvd();
+  int num() {
+    if(is_solved()) {
+      int cnt=1;
+      for (; cnt<10;++cnt) { if (cell_info & (1<<cnt)) break;}
+      return(cnt);
+    }
+    return 0;
+  }
+
 };
 
 Vcell operator + (const Vcell &a, const Vcell &b)
@@ -82,7 +92,7 @@ ostream & operator << (ostream & out,const Vcell &a)
   if (a.cell_info&(1<<cnt)) out<<cnt;
   out<<")";
 #else
-   out << std::hex << a.cell_info;
+   out << std::hex << a.cell_info << " ";
 #endif
   return(out);
 }

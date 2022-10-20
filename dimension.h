@@ -2,19 +2,34 @@
 #define _dimension_h_
 #include "vcell.h"
 #include <vector>
+#include <assert.h>
 
-void gen_combi_mask(int k, vector <unsigned int> &combi_masks);
+void gen_combi( int k, vector <vector <int>> &res);
+void gen_compl_cells(vector <int> const &res, vector <int> &compl_res);
+enum class dimn_type {ROW,COL,SQR};
+enum class result {SUCESS,ERROR,STUCK};
 
 /* could be row/column or square*/
 class Dimn {
 
  protected:
   vector <Vcell *> vcell_ptr;
+  int my_index; // 0--8
 
  public:
-  bool check_solved();
   bool clean_up(int idx);
   bool rule1_solve();
+  int get_idx() { return(my_index);}
+  bool Dimn::rem_pattern(Vcell rem_pattern, vector <int> const & cells);
+  result Dimn::check_solved();
+
+  virtual void init(int idx, Vcell sud_arr[9][9]) =0;
+  virtual dimn_type get_type() =0;
+  Vcell get_union(vector <int> cell_idxs) {
+    Vcell uni_cell(0);
+    for (auto cell:cell_idxs) uni_cell = uni_cell + *(vcell_ptr[cell]);
+    return(uni_cell);
+    }
 };
 
 bool Dimn::clean_up(int idx)
@@ -36,15 +51,34 @@ bool Dimn::clean_up(int idx)
   return false;
 }
 
-bool Dimn::check_solved()
+result Dimn::check_solved()
 {
   Vcell solv_patrn(0);
+  int cell_cnt = 0;
   for(int cnt=0; cnt<9;++cnt)
   {
-    if (clean_up(cnt)) solv_patrn = solv_patrn + *vcell_ptr[cnt];
+    if (vcell_ptr[cnt]->is_solved()) {
+      solv_patrn = solv_patrn + *vcell_ptr[cnt];
+      ++cell_cnt;
+    }
   }
 
-  return(solv_patrn.match(ALL_MASK));
+  if (cell_cnt != solv_patrn.num_entry()) return result::ERROR;
+  if (solv_patrn.match(ALL_MASK)) return result::SUCESS;
+  return(result::STUCK);
+}
+
+bool Dimn::rem_pattern(Vcell rem_pattern, vector <int> const & cells)
+{
+  // There exists some remaing pattern afer removing the unique entries..
+  // Can safely remove this pattern from the in_cells
+  if (!rem_pattern.match(0)) {
+    for (auto incell_idx:cells) {
+      *(vcell_ptr[incell_idx]) = *(vcell_ptr[incell_idx]) -rem_pattern;
+    }
+    return true;
+  }
+  return false;
 }
 
 #if 0
@@ -92,24 +126,28 @@ bool Dimn::rule1a_solve()
 
 bool Dimn::rule1_solve()
 {
-  static vector <unsigned int> comb_mask;  // Temporary vriable
+  static vector <vector <int>> comb_res;  // Temporary vriable
+  static vector <int> compl_res;  // Temporary vriable
+
   int change_cnt=0;
 
   // Generalization of Rule 1a.. we start with looking 2 cells at
   // a time, although we could have start with 1 cell. and combined the two rules
   // "cell_group" is 'k' of 9Ck, where we are getting a combination of 'k' cells
   for (int cell_group=1; cell_group<9;++cell_group) {
-    comb_mask.clear();
-    gen_combi_mask(cell_group, comb_mask);
+    comb_res.clear();
+    gen_combi(cell_group, comb_res); // Generate all possible combination of "cell_groups" number of cells
 
-    Vcell in_cell(0), out_cell(0);
-    for (auto mask:comb_mask) {
+    // For each combination
+    for (auto comb:comb_res) {
+      // Generate the "Outcell" pattern
+      compl_res.clear();
+      gen_compl_cells(comb, compl_res);
+
       // get the incell vs outcell pattern
-      for (int cell_cnt=0; cell_cnt<9;++cell_cnt) {
-        // Incell
-        if (mask&(1<<cell_cnt)) in_cell = in_cell + *(vcell_ptr[cell_cnt]);
-        else out_cell = out_cell + *(vcell_ptr[cell_cnt]);
-      }
+      Vcell in_cell = get_union(comb);
+      Vcell out_cell = get_union(compl_res);
+
 
       // Get any unique patrn that lies only in the cell
       Vcell unique_patrn = in_cell - out_cell;
@@ -123,33 +161,20 @@ bool Dimn::rule1_solve()
 
         // There exists some remaing pattern afer removing the unique entries..
         // Can safely remove this pattern from the in_cells
-        if (!remain_patrn.match(0)) {
-          for (int cell_cnt=0; cell_cnt<9;++cell_cnt) {
-            // Incell
-            if (mask&(1<<cell_cnt)) *(vcell_ptr[cell_cnt]) = *(vcell_ptr[cell_cnt]) -remain_patrn;
-          }
-
-          // Track if there was a changes
-          ++change_cnt;
-        }
+        // Track if there was a changes
+        if (rem_pattern(remain_patrn, comb)) ++change_cnt;
       }
 
-        // Check if incell pattern == 'k'
+      // Check if incell pattern == 'k'
       if (in_cell.num_entry() == cell_group)
       {
+        // Get the intersecting pattern.. these will be
+        // made up the incell entrys..
         // In this case we can safely remove the pattern on the cells outside
         Vcell intersect_pattern =out_cell * in_cell;
 
-        if (!intersect_pattern.match(0)) {
-
-        for (int cell_cnt=0; cell_cnt<9;++cell_cnt) {
-          // Outcell
-          if (!(mask&(1<<cell_cnt))) *(vcell_ptr[cell_cnt]) = *(vcell_ptr[cell_cnt]) -intersect_pattern;
-        }
-
         // Track if there was a changes
-        ++change_cnt;
-        }
+        if (rem_pattern(intersect_pattern, compl_res)) ++change_cnt;
       }
     }
   }
@@ -158,10 +183,11 @@ bool Dimn::rule1_solve()
 
 class Row:public Dimn {
 private:
-  int my_index; // 0--8
+
 
 public:
   void init(int row_index, Vcell sud_arr[9][9]);
+  dimn_type get_type() {return dimn_type::ROW;}
 };
 
 void Row::init(int row_index, Vcell sud_arr[9][9])
@@ -176,10 +202,10 @@ void Row::init(int row_index, Vcell sud_arr[9][9])
 
 class Col:public Dimn {
 private:
-  int my_index; // 0--8
 
 public:
   void init(int col_index, Vcell sud_arr[9][9]);
+  dimn_type get_type() {return dimn_type::COL;}
 };
 
 void Row::init(int col_index, Vcell sud_arr[9][9])
@@ -191,23 +217,24 @@ void Row::init(int col_index, Vcell sud_arr[9][9])
   }
 }
 
-
 class Sqr:public Dimn {
 private:
-  int my_index; // 0--
   int my_start_row;
   int my_start_col;
 
 public:
   void init(int sqr_index, Vcell sud_arr[9][9]);
+  bool rule2_solve(Dimn &intrsct);
+  dimn_type get_type() {return dimn_type::SQR;}
+  bool Sqr::get_overlap(Dimn &dimn, vector <int> &sqr_cell_in, vector <int> &oth_cell_in);
 };
 
-void Row::init(int sqr_index, Vcell sud_arr[9][9])
+void Sqr::init(int sqr_index, Vcell sud_arr[9][9])
 {
   my_index = sqr_index;
 
-  int my_start_row = 3*(sqr_index/3);
-  int my_start_col = 3*(sqr_index%3);
+  my_start_row = 3*(sqr_index/3);
+  my_start_col = 3*(sqr_index%3);
   for (int row=0; row<3;++row) {
       for (int col=0; col<3;++col) {
       vcell_ptr[3*row+col]=&(sud_arr[my_start_row+row][my_start_col+col]);
@@ -215,3 +242,40 @@ void Row::init(int sqr_index, Vcell sud_arr[9][9])
   }
 }
 
+bool Sqr::get_overlap(Dimn &dimn, vector <int> &sqr_cell_in, vector <int> &oth_cell_in)
+{
+  sqr_cell_in.clear();
+  oth_cell_in.clear();
+
+ // Check if overlapping dimesntion is a row or col
+  if (dimn.get_type()==dimn_type::ROW) {
+    int row_idx=dimn.get_idx();
+    if ((row_idx>=my_start_row)&&(row_idx<my_start_row+3)) {
+      // Overlap exists...
+      for (int cnt=0; cnt<3;++cnt) {
+        // Overlapping cell ids in SQR cell
+        sqr_cell_in.push_back(3*(row_idx-my_start_row)+cnt);
+        // Overlapping cell ids in Other dimesnsion
+        oth_cell_in.push_back(my_start_col+cnt);
+      }
+      return true;
+    }
+  }
+  else if (dimn.get_type()==dimn_type::COL) {
+    int col_idx=dimn.get_idx();
+    if ((col_idx>=my_start_col)&&(col_idx<my_start_col+3)) {
+      // Overlap exists...
+      for (int cnt=0; cnt<3;++cnt) {
+        // Overlapping cell ids in SQR cell
+        sqr_cell_in.push_back(3*cnt +(col_idx-my_start_col));
+        // Overlapping cell ids in Other dimesnsion
+        oth_cell_in.push_back(my_start_row+cnt);
+      }
+      return false;
+    }
+  }
+  else {
+   assert(0); // We dont support overlaps of mini-square
+  }
+ return false;
+}
