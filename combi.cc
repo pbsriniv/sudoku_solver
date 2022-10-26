@@ -54,7 +54,7 @@ int main()
 
 vector <vector <int>>  res;
 
-combi(6,res);
+gen_combi(6,res);
 
 int idx=0;
 for (auto itr:res)
